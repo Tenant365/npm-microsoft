@@ -148,7 +148,8 @@ const getM365ClientCertificateClientAssertion = async (
   };
 
   if (credentials.keyId ?? credentials.keyVaultSigner?.keyId) {
-    protectedHeader.kid = credentials.keyId ?? credentials.keyVaultSigner?.keyId;
+    protectedHeader.kid =
+      credentials.keyId ?? credentials.keyVaultSigner?.keyId;
   }
 
   if (

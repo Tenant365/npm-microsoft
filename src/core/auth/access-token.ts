@@ -1,5 +1,6 @@
 import {
   type M365AccessToken,
+  type M365Authentication,
   createM365ClientCertificate,
   createM365ClientCredentials,
 } from "./auth";
@@ -77,5 +78,38 @@ export const getM365AccessTokenWithKeyVaultSigning = async (
   });
 
   return await auth.GetAccessToken(request.scope ?? MS365Scopes.DEFAULT);
+};
+
+export const getM365AuthenticationWithKeyVaultSigning = async (
+  request: M365KeyVaultSigningAccessTokenRequest,
+): Promise<M365Authentication> => {
+  const keyVaultAuth = createM365ClientCredentials({
+    tenantId: request.keyVaultTenantId ?? request.tenantId,
+    clientId: request.keyVaultClientId ?? request.clientId,
+    clientSecret: request.keyVaultClientSecret ?? request.clientSecret,
+  });
+
+  // Fetch certificate first; signing is then delegated to Key Vault.
+  const keyVaultCertificate = await getM365KeyVaultCertificate({
+    vaultName: request.keyVaultName,
+    certificateName: request.certificateName,
+    certificateVersion: request.certificateVersion,
+    authentication: keyVaultAuth,
+  });
+
+  const keyVaultSigner = createM365KeyVaultJwtSigner({
+    vaultName: request.keyVaultName,
+    keyName: request.keyName,
+    keyVersion: request.keyVersion,
+    authentication: keyVaultAuth,
+  });
+
+  return createM365ClientCertificate({
+    tenantId: request.tenantId,
+    clientId: request.clientId,
+    certificate: keyVaultCertificate.x509Pem,
+    keyVaultSigner,
+    keyId: keyVaultSigner.keyId,
+  });
 };
 

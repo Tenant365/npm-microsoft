@@ -63,7 +63,10 @@ const { token, expiresAt } = await client.GetAccessToken(MS365Scopes.DEFAULT);
 The private key never leaves Azure Key Vault. The library fetches the certificate and delegates signing to the Key Vault sign API.
 
 ```typescript
-import { getM365AccessTokenWithKeyVaultSigning, MS365Scopes } from "@tenant365/microsoft";
+import {
+  getM365AccessTokenWithKeyVaultSigning,
+  MS365Scopes,
+} from "@tenant365/microsoft";
 
 const { token, expiresAt } = await getM365AccessTokenWithKeyVaultSigning({
   tenantId: "your-tenant-id",
@@ -90,23 +93,23 @@ const { token, expiresAt } = await getM365AccessTokenWithKeyVaultSigning({
 
 Returns an object with a `GetAccessToken(scope?)` method that authenticates using a client secret.
 
-| Parameter      | Type   | Description                          |
-|----------------|--------|--------------------------------------|
-| `tenantId`     | string | Azure AD tenant ID                   |
-| `clientId`     | string | Application (client) ID              |
-| `clientSecret` | string | Client secret value                  |
+| Parameter      | Type   | Description             |
+| -------------- | ------ | ----------------------- |
+| `tenantId`     | string | Azure AD tenant ID      |
+| `clientId`     | string | Application (client) ID |
+| `clientSecret` | string | Client secret value     |
 
 #### `createM365ClientCertificate(credentials)`
 
 Returns an object with a `GetAccessToken(scope?)` method that authenticates using a certificate and private key.
 
-| Parameter    | Type                   | Description                                         |
-|--------------|------------------------|-----------------------------------------------------|
-| `tenantId`   | string                 | Azure AD tenant ID                                  |
-| `clientId`   | string                 | Application (client) ID                             |
-| `privateKey` | `CryptoKey` \| string  | PEM-encoded private key or a `CryptoKey` object     |
-| `certificate`| string                 | PEM-encoded X.509 certificate                       |
-| `keyId`      | string (optional)      | Key ID for the JWT header                           |
+| Parameter     | Type                  | Description                                     |
+| ------------- | --------------------- | ----------------------------------------------- |
+| `tenantId`    | string                | Azure AD tenant ID                              |
+| `clientId`    | string                | Application (client) ID                         |
+| `privateKey`  | `CryptoKey` \| string | PEM-encoded private key or a `CryptoKey` object |
+| `certificate` | string                | PEM-encoded X.509 certificate                   |
+| `keyId`       | string (optional)     | Key ID for the JWT header                       |
 
 Certificate authentication uses a JWT client assertion signed with RS256/RS384/RS512 (detected automatically from the key). The assertion includes the certificate thumbprint (`x5t` and `x5t#S256`).
 
@@ -184,8 +187,8 @@ Predefined scope constants:
 ```typescript
 import { MS365Scopes } from "@tenant365/microsoft";
 
-MS365Scopes.DEFAULT    // "https://graph.microsoft.com/.default"
-MS365Scopes.KEY_VAULT  // "https://vault.azure.net/.default"
+MS365Scopes.DEFAULT; // "https://graph.microsoft.com/.default"
+MS365Scopes.KEY_VAULT; // "https://vault.azure.net/.default"
 ```
 
 ---
@@ -196,7 +199,7 @@ All `GetAccessToken` methods return an `M365AccessToken`:
 
 ```typescript
 type M365AccessToken = {
-  token: string;   // Bearer token
+  token: string; // Bearer token
   expiresAt: Date; // Expiration time
 };
 ```
@@ -234,10 +237,10 @@ pnpm build
 
 Output is placed in `dist/`:
 
-| File              | Format      |
-|-------------------|-------------|
-| `dist/index.js`   | CommonJS    |
-| `dist/index.mjs`  | ESM         |
+| File              | Format                  |
+| ----------------- | ----------------------- |
+| `dist/index.js`   | CommonJS                |
+| `dist/index.mjs`  | ESM                     |
 | `dist/index.d.ts` | TypeScript declarations |
 
 ---

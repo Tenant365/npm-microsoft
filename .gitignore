@@ -147,3 +147,5 @@ vite.config.ts.timestamp-*
 **/test.ts
 
 **/certs
+
+test.ts
