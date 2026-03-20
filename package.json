@@ -17,6 +17,8 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublishOnly": "pnpm run build"
   },
   "keywords": [
@@ -53,7 +55,8 @@
   "devDependencies": {
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@types/node": "^25.5.0",
