@@ -1,4 +1,5 @@
-import { M365Authentication } from "@/core";
+import { M365Authentication } from "../core/auth";
+import { MS365Scopes } from "../core/auth";
 
 export interface M365Team {
   id: string;
@@ -19,18 +20,26 @@ const isGraphTeamsResponse = (value: unknown): value is GraphTeamsResponse => {
   return Array.isArray((value as GraphTeamsResponse).value);
 };
 
+const isM365Team = (value: unknown): value is M365Team => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  return typeof (value as M365Team).id === "string";
+};
+
 export class TeamsClient {
   public constructor(private readonly authentication: M365Authentication) {}
 
-  public async getAccessToken(scope?: string): Promise<string> {
-    const accessToken = await this.authentication.GetAccessToken(scope);
+  public async getAccessToken(): Promise<string> {
+    const accessToken = await this.authentication.GetAccessToken(
+      MS365Scopes.DEFAULT,
+    );
     return accessToken.token;
   }
 
-  public async getAllTeamsWithAccessToken(
-    accessToken: string,
-  ): Promise<M365Team[]> {
-    const response = await fetch("https://graph.microsoft.com/v1.0/teams", {
+  private async graphRequest(path: string, accessToken: string): Promise<unknown> {
+    const response = await fetch(`https://graph.microsoft.com/v1.0/${path}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -44,20 +53,42 @@ export class TeamsClient {
 
     if (!response.ok) {
       throw new Error(
-        `Microsoft Graph teams request failed: ${response.status} ${response.statusText} - ${JSON.stringify(data)}`,
+        `Microsoft Graph ${path} request failed: ${response.status} ${response.statusText} - ${JSON.stringify(data)}`,
       );
     }
+
+    return data;
+  }
+
+  private async requestTeam(
+    teamId: string,
+    accessToken: string,
+  ): Promise<M365Team> {
+    const data = await this.graphRequest(`teams/${teamId}`, accessToken);
+
+    if (!isM365Team(data)) {
+      throw new Error(
+        `Microsoft Graph teams/${teamId} response has an invalid format.`,
+      );
+    }
+
+    return data;
+  }
+
+  public async getTeam(teamId: string): Promise<M365Team> {
+    const accessToken = await this.getAccessToken();
+    return await this.requestTeam(teamId, accessToken);
+  }
+
+  public async getAllTeams(): Promise<M365Team[]> {
+    const accessToken = await this.getAccessToken();
+    const data = await this.graphRequest("teams", accessToken);
 
     if (!isGraphTeamsResponse(data)) {
       throw new Error("Microsoft Graph teams response has an invalid format.");
     }
 
     return data.value;
-  }
-
-  public async getAllTeams(scope?: string): Promise<M365Team[]> {
-    const accessToken = await this.getAccessToken(scope);
-    return this.getAllTeamsWithAccessToken(accessToken);
   }
 }
 

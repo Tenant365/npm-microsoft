@@ -17,10 +17,15 @@ const run = async () => {
 
   const teamsClient = createTeamsClient(authentication);
 
-  const accessToken = await teamsClient.getAccessToken(MS365Scopes.DEFAULT);
-  const teams = await teamsClient.getAllTeamsWithAccessToken(accessToken);
+  await teamsClient.getAccessToken();
+  const teams = await teamsClient.getAllTeams();
+
+  const team = await teamsClient.getTeam(
+    "00000000-0000-0000-0000-000000000000",
+  );
 
   console.log("Teams:", teams);
+  console.log("Team:", team);
 };
 
 void run();
