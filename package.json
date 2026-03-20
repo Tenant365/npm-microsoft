@@ -1,0 +1,62 @@
+{
+  "name": "@tenant365/microsoft",
+  "version": "0.0.1",
+  "description": "Microsoft APIs - Powered by Tenant365",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "tenant365",
+    "microsoft",
+    "api",
+    "sharepoint",
+    "graph",
+    "identity",
+    "authentication",
+    "authorization",
+    "azure",
+    "azure-ad",
+    "azure-ad-b2c",
+    "azure-ad-b2b",
+    "azure-key-vault",
+    "azure-storage",
+    "azure-cosmos",
+    "azure-search",
+    "azure-event-grid",
+    "azure-event-hub",
+    "azure-service-bus",
+    "azure-storage-queue",
+    "azure-storage-table"
+  ],
+  "author": "Tenant365",
+  "license": "MIT",
+  "homepage": "https://tenant365.cloud",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tenant365/npm-microsoft.git"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@types/node": "^25.5.0",
+    "jose": "^6.2.2"
+  }
+}
