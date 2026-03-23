@@ -1,6 +1,6 @@
 {
   "name": "@tenant365/microsoft",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Microsoft APIs - Powered by Tenant365",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
