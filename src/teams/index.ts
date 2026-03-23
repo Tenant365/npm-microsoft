@@ -28,6 +28,9 @@ export interface M365CreateTeamMemberInput {
   roles?: ("owner" | "member")[];
 }
 
+/** Visibility of the team */
+export type M365TeamVisibility = "private" | "public";
+
 /**
  * Input for {@link TeamsClient.createTeam}. Graph requires a template binding
  * and at least one owner in `members`.
@@ -47,6 +50,8 @@ export interface M365CreateTeamInput {
    */
   templateOdataBind?: string;
   members: M365CreateTeamMemberInput[];
+  visibility?: M365TeamVisibility;
+  image?: string;
 }
 
 /** Result when Graph provisions a team asynchronously (HTTP 202). */
@@ -112,12 +117,17 @@ export class TeamsClient {
   private async graphRequest(
     path: string,
     accessToken: string,
+    body?: string,
+    method?: "GET" | "POST" | "PUT" | "DELETE",
+    headers?: Record<string, string>,
   ): Promise<unknown> {
     const response = await fetch(`https://graph.microsoft.com/v1.0/${path}`, {
-      method: "GET",
+      method: method ?? "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        ...headers,
       },
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     const data: unknown = await response.json().catch(async () => {
@@ -155,6 +165,42 @@ export class TeamsClient {
     );
   }
 
+  private async requestTeamCreate(
+    input: M365CreateTeamInput,
+  ): Promise<unknown> {
+    return await this.graphRequest(
+      "teams",
+      await this.getAccessToken(),
+      JSON.stringify(input),
+      "POST",
+      {
+        "Content-Type": "application/json",
+      },
+    );
+  }
+
+  private async requestTeamImageUpload(
+    teamId: string,
+    image: string,
+  ): Promise<unknown> {
+    return await this.graphRequest(
+      `teams/${teamId}/photo/$value`,
+      await this.getAccessToken(),
+      image,
+      "PUT",
+      {
+        "Content-Type": "image/jpeg",
+      },
+    );
+  }
+
+  private async requestTeamImage(teamId: string): Promise<unknown> {
+    return await this.graphRequest(
+      `teams/${teamId}/photo/$value`,
+      await this.getAccessToken(),
+    );
+  }
+
   /**
    * Lists team templates available for the tenant (`GET /v1.0/teamsTemplates`).
    * Use an `id` from this list in {@link M365CreateTeamInput.templateId} or build
@@ -185,9 +231,7 @@ export class TeamsClient {
   }
 
   public async getAllTeams(search?: string): Promise<M365Team[]> {
-    const data = await this.requestTeams(
-      search ? `$search=${search}` : "",
-    );
+    const data = await this.requestTeams(search ? `$search=${search}` : "");
     if (!isGraphTeamsResponse(data)) {
       throw new Error("Microsoft Graph teams response has an invalid format.");
     }
@@ -232,6 +276,7 @@ export class TeamsClient {
 
     const accessToken = await this.getAccessToken();
     const templateId = input.templateId ?? "standard";
+    const visibility = input.visibility ?? "private";
     const templateBind =
       input.templateOdataBind ??
       `https://graph.microsoft.com/v1.0/teamsTemplates('${templateId.replace(/'/g, "''")}')`;
@@ -246,55 +291,29 @@ export class TeamsClient {
         roles: m.roles?.length ? m.roles : ["owner"],
         "user@odata.bind": `https://graph.microsoft.com/v1.0/users('${m.userId}')`,
       })),
+      visibility: visibility,
     };
 
-    const response = await fetch("https://graph.microsoft.com/v1.0/teams", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(graphBody),
-    });
-
-    const data: unknown = await response.json().catch(async () => {
-      const text = await response.text().catch(() => "");
-      return text ? { raw: text } : undefined;
-    });
-
-    if (!response.ok) {
-      const payload = JSON.stringify(data);
-      let hint = "";
-      if (
-        response.status === 404 &&
-        (payload.includes("Templates") ||
-          payload.includes("CreateTeamFromTemplateRequest") ||
-          payload.includes("teamTemplates"))
-      ) {
-        hint =
-          " Hint: The Teams template service returned NotFound. Call getAllTeamTemplates(), pick a template `id` your tenant supports, set templateId or templateOdataBind, ensure Microsoft Teams is enabled for the tenant, and use a valid owner userId (Azure AD object id in that tenant).";
-      }
-      throw new Error(
-        `Microsoft Graph teams request failed: ${response.status} ${response.statusText} - ${payload}${hint}`,
-      );
-    }
-
-    if (response.status === 202) {
-      return {
-        status: 202,
-        operationLocation: response.headers.get("Location"),
-        contentLocation: response.headers.get("Content-Location"),
-        body: data,
-      };
-    }
-
+    const data = await this.requestTeamCreate(
+      graphBody as unknown as M365CreateTeamInput,
+    );
     if (!isM365Team(data)) {
       throw new Error(
         `Microsoft Graph teams create response has an invalid format: ${JSON.stringify(data)}`,
       );
     }
-
     return data;
+  }
+
+  public async uploadTeamImage(
+    teamId: string,
+    image: string,
+  ): Promise<unknown> {
+    return await this.requestTeamImageUpload(teamId, image);
+  }
+
+  public async getTeamImage(teamId: string): Promise<unknown> {
+    return await this.requestTeamImage(teamId);
   }
 }
 
