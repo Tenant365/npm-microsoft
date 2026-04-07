@@ -231,6 +231,32 @@ export class SharePointClient extends M365GraphClientBase {
     return first as M365SharePointListViewInfo;
   }
 
+  public async getSharePointListViewsByTitle(
+    siteWebUrl: string,
+    listTitle: string,
+  ): Promise<M365SharePointListViewInfo[]> {
+    const escapedListTitle = listTitle.replace(/'/g, "''");
+    const url = `${siteWebUrl}/_api/web/lists/getbytitle('${escapedListTitle}')/views?$select=Id,Title,DefaultView`;
+    const data = await this.requestSharePointRest(url, "GET");
+    const maybeResults = (data as any)?.d?.results;
+    if (!Array.isArray(maybeResults)) {
+      throw new Error(
+        `SharePoint REST list views response has an invalid format: ${JSON.stringify(data)}`,
+      );
+    }
+
+    const invalidEntry = maybeResults.find(
+      (entry) => typeof entry?.Id !== "string",
+    );
+    if (invalidEntry !== undefined) {
+      throw new Error(
+        `SharePoint REST list views payload contains an invalid entry: ${JSON.stringify(invalidEntry)}`,
+      );
+    }
+
+    return maybeResults as M365SharePointListViewInfo[];
+  }
+
   public async setSharePointListViewXml(
     request: M365SharePointListViewXmlRequest & { viewXml: string },
   ): Promise<unknown> {

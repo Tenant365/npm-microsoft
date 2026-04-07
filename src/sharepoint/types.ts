@@ -63,5 +63,6 @@ export interface M365SharePointListViewXmlRequest {
 export interface M365SharePointListViewInfo {
   Id: string;
   Title?: string;
+  DefaultView?: boolean;
   [key: string]: unknown;
 }
