@@ -4,6 +4,8 @@ Microsoft APIs – Powered by Tenant365
 
 A TypeScript library for Microsoft 365 and Azure authentication. Supports client credentials, certificate-based authentication, and Azure Key Vault-backed signing.
 
+Detailed architecture and module conventions: see `ARCHITECTURE.md`.
+
 ---
 
 ## Features
@@ -25,6 +27,26 @@ npm install @tenant365/microsoft
 # or
 pnpm add @tenant365/microsoft
 ```
+
+---
+
+## Module Structure
+
+The package is organized by domain, each with an object-oriented client and typed helpers:
+
+- `src/core/auth` - authentication and signing strategies
+- `src/common/graph` - shared Graph transport + base client abstractions
+- `src/teams` - Teams client (`types`, `guards`, `client`, `index`)
+- `src/sharepoint` - SharePoint client (`types`, `guards`, `client`, `index`)
+- `src/entra` - Entra directory clients (users, groups, applications, service principals, directory roles)
+
+Design principles:
+
+- explicit function names per signing strategy
+- runtime guards for Graph payload shape validation
+- client classes per domain with factory functions
+- shared Graph transport (`src/common/graph/request.ts`) for consistent HTTP/error handling
+- Vitest unit tests per module
 
 ---
 
@@ -58,6 +80,19 @@ const client = createM365ClientCertificate({
 });
 
 const { token, expiresAt } = await client.GetAccessToken(MS365Scopes.DEFAULT);
+```
+
+You can generate local PEM material with:
+
+```typescript
+import { createM365LocalSigningCertificate } from "@tenant365/microsoft";
+
+const cert = await createM365LocalSigningCertificate({
+  commonName: "my-local-app",
+  daysValid: 365,
+});
+// cert.privateKeyPem
+// cert.certificatePem
 ```
 
 ### Key Vault Signing
@@ -163,9 +198,24 @@ Fetches the certificate from Key Vault, signs the JWT locally using the provided
 
 Fetches the certificate from Key Vault, signs the JWT remotely using the Key Vault sign API.
 
+#### `getM365AccessTokenWithLocalCertificateSigning(request)`
+
+Requests an access token using a local certificate + private key signing flow.
+
 #### `getM365AuthenticationWithKeyVaultSigning(request)`
 
 Builds an `M365Authentication` object using Key Vault-backed signing (certificate + signer). Useful when you want to pass authentication into service clients like `TeamsClient`.
+
+#### `getM365AuthenticationWithLocalCertificateSigning(request)`
+
+Builds an `M365Authentication` object from a local certificate/private key pair.
+
+#### `M365AuthenticationProvider`
+
+Object-oriented wrapper for authentication strategy selection:
+
+- `buildWithKeyVaultSigning(request)`
+- `buildWithLocalCertificateSigning(request)`
 
 ---
 
@@ -257,6 +307,48 @@ Checklist:
    `https://graph.microsoft.com/v1.0/teamsTemplates('<id>')` for that id.
 2. Ensure **Microsoft Teams** is enabled for the tenant and the app has permissions such as `Team.Create` (and `User.Read.All` to resolve members).
 3. Every `members[].userId` must be a real **Azure AD object id** of a user in that tenant (not `00000000-...`), and at least one **owner** is required.
+
+---
+
+### SharePoint
+
+#### `createSharePointClient(authentication)`
+
+Creates a SharePoint client with Graph and SharePoint REST helpers:
+
+- `getAllSharePointSites(search?)` - `GET /v1.0/sites?$search=...`
+- `searchSharePointSitesWithSelect(search)` - `GET /v1.0/sites?search=<term>&$select=name,id,displayName,webUrl`
+- `getSharePointLists(siteId)` - `GET /v1.0/sites/{siteId}/lists?$select=id,displayName,list`
+- `getSharePointListColumns(siteId, listId)` - `GET /v1.0/sites/{siteId}/lists/{listId}/columns`
+- `buildSharePointViewXml(options)` - builds View XML for list view updates
+- `setSharePointListViewXml(request)` - `POST <siteWebUrl>/_api/Web/Lists(guid'{listId}')/Views(guid'{viewId}')/SetViewXml`
+
+Example:
+
+```typescript
+const sharePointClient = createSharePointClient(auth);
+
+const sites = await sharePointClient.searchSharePointSitesWithSelect("Controlx6Team");
+const lists = await sharePointClient.getSharePointLists("hostname,siteCollectionId,siteId");
+const columns = await sharePointClient.getSharePointListColumns(
+  "hostname,siteCollectionId,siteId",
+  "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+);
+
+const viewXml = sharePointClient.buildSharePointViewXml({
+  viewFields: ["Title", "Modified"],
+  rowLimit: 100,
+  whereClauseXml:
+    "<Where><IsNotNull><FieldRef Name='Title' /></IsNotNull></Where>",
+});
+
+await sharePointClient.setSharePointListViewXml({
+  siteWebUrl: "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+  listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+  viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
+  viewXml,
+});
+```
 
 ---
 
