@@ -103,4 +103,58 @@ describe("SharePointClient API integrations", () => {
       expect.objectContaining({ method: "GET" }),
     );
   });
+
+  it("loads default view by list title from SharePoint REST endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        d: { results: [{ Id: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2", Title: "All Documents" }] },
+      }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const defaultView = await client.getSharePointDefaultViewByListTitle(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+      "Documents",
+    );
+
+    expect(defaultView?.Id).toBe("8cf2f9a6-11a3-4eca-8a34-83b9fec192b2");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$filter=DefaultView eq true&$select=Id,Title",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads all views by list title from SharePoint REST endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        d: {
+          results: [
+            { Id: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2", Title: "All Documents", DefaultView: true },
+            { Id: "e258545f-c971-4be5-af00-6c5288546370", Title: "By Author", DefaultView: false },
+          ],
+        },
+      }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const views = await client.getSharePointListViewsByTitle(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+      "Documents",
+    );
+
+    expect(views).toHaveLength(2);
+    expect(views[0]?.DefaultView).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$select=Id,Title,DefaultView",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });
