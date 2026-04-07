@@ -68,6 +68,10 @@ export class TeamsClient extends M365GraphClientBase {
     return await this.executeGraphRequest(`teams/${teamId}/photo/$value`);
   }
 
+  private async requestTeamDelete(teamId: string): Promise<void> {
+    await this.executeGraphRequest(`teams/${teamId}`, undefined, "DELETE");
+  }
+
   public async getAllTeamTemplates(): Promise<M365TeamTemplate[]> {
     const data = await this.requestTeamTemplates();
     if (!isGraphTeamTemplatesResponse(data)) {
@@ -152,6 +156,15 @@ export class TeamsClient extends M365GraphClientBase {
 
     const data = await this.requestTeamCreate(graphBody);
 
+    // Graph can return success without a response body during async team provisioning.
+    if (data === undefined) {
+      return {
+        status: 202,
+        operationLocation: null,
+        contentLocation: null,
+      };
+    }
+
     if (!isM365Team(data)) {
       throw new Error(
         `Microsoft Graph teams create response has an invalid format: ${JSON.stringify(data)}`,
@@ -159,6 +172,10 @@ export class TeamsClient extends M365GraphClientBase {
     }
 
     return data;
+  }
+
+  public async deleteTeam(teamId: string): Promise<void> {
+    await this.requestTeamDelete(teamId);
   }
 
   public async uploadTeamImage(

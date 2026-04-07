@@ -90,4 +90,50 @@ describe("TeamsClient", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("accepts create-team success with no response body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 202,
+        statusText: "Accepted",
+        json: async () => {
+          throw new Error("no json");
+        },
+        text: async () => "",
+      }),
+    );
+
+    const client = new TeamsClient(auth as any);
+    const result = await client.createTeam({
+      displayName: "Async Team",
+      members: [{ userId: "u-1", roles: ["owner"] }],
+    });
+
+    expect(result).toMatchObject({
+      status: 202,
+      operationLocation: null,
+      contentLocation: null,
+    });
+  });
+
+  it("deletes a team", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      statusText: "No Content",
+      json: async () => ({}),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new TeamsClient(auth as any);
+    await client.deleteTeam("team-delete-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://graph.microsoft.com/v1.0/teams/team-delete-1",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
 });
