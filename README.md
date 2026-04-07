@@ -292,6 +292,7 @@ Creates a Teams client with helper methods:
 - `getAllTeamsMetadata()` – Returns a reduced `M365TeamMetadata[]` from the teams list (same idea as `getSharePointAllSitesMetadata`)
 - `getTeam(teamId)` – Calls `GET /v1.0/teams/{teamId}`
 - `getTeamById(teamId)` – Alias for `getTeam(teamId)`
+- `deleteTeam(teamId)` – Calls `DELETE /v1.0/teams/{teamId}`
 - `getAllTeamTemplates()` – Calls `GET /v1.0/teamsTemplates` so you can choose a template id supported by your tenant
 - `createTeam(input)` – Calls `POST /v1.0/teams` with `template@odata.bind` and `members` (Graph requirement). Returns the team resource or a **202** provisioning result with `operationLocation` / `contentLocation` headers.
 
@@ -316,7 +317,7 @@ Checklist:
 
 Creates a SharePoint client with Graph and SharePoint REST helpers:
 
-- `getAllSharePointSites(search?)` - `GET /v1.0/sites?$search=...`
+- `getAllSharePointSites(search?)` - `GET /v1.0/sites?search=...`
 - `searchSharePointSitesWithSelect(search)` - `GET /v1.0/sites?search=<term>&$select=name,id,displayName,webUrl`
 - `getSharePointLists(siteId)` - `GET /v1.0/sites/{siteId}/lists?$select=id,displayName,list`
 - `getSharePointListColumns(siteId, listId)` - `GET /v1.0/sites/{siteId}/lists/{listId}/columns`
