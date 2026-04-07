@@ -11,6 +11,7 @@ import {
 import {
   M365SharePointColumn,
   M365SharePointListInfo,
+  M365SharePointListViewXmlRequest,
   M365SharePointSite,
   M365SharePointSiteMetadata,
   M365SharePointViewXmlBuilderOptions,
@@ -47,11 +48,12 @@ export class SharePointClient extends M365GraphClientBase {
 
   private async requestSharePointRest(
     absoluteUrl: string,
+    method: "GET" | "POST",
     body?: unknown,
   ): Promise<unknown> {
     const token = await this.getAccessToken();
     const response = await fetch(absoluteUrl, {
-      method: "POST",
+      method,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json;odata=verbose",
@@ -72,6 +74,12 @@ export class SharePointClient extends M365GraphClientBase {
     }
 
     return data;
+  }
+
+  private buildSharePointViewXmlEndpoint(
+    request: M365SharePointListViewXmlRequest,
+  ): string {
+    return `${request.siteWebUrl}/_api/Web/Lists(guid'${request.listId}')/Views(guid'${request.viewId}')`;
   }
 
   public async getSharePointSiteById(
@@ -181,14 +189,27 @@ export class SharePointClient extends M365GraphClientBase {
     return `<View>${query}${viewFields}${rowLimit}</View>`;
   }
 
-  public async setSharePointListViewXml(request: {
-    siteWebUrl: string;
-    listId: string;
-    viewId: string;
-    viewXml: string;
-  }): Promise<unknown> {
-    const url = `${request.siteWebUrl}/_api/Web/Lists(guid'${request.listId}')/Views(guid'${request.viewId}')/SetViewXml`;
-    return await this.requestSharePointRest(url, { viewXml: request.viewXml });
+  public async getSharePointListViewXml(
+    request: M365SharePointListViewXmlRequest,
+  ): Promise<string> {
+    const url = `${this.buildSharePointViewXmlEndpoint(request)}/ListViewXml`;
+    const data = await this.requestSharePointRest(url, "GET");
+    const maybeValue = (data as any)?.d?.ListViewXml;
+    if (typeof maybeValue !== "string") {
+      throw new Error(
+        `SharePoint REST ListViewXml response has an invalid format: ${JSON.stringify(data)}`,
+      );
+    }
+    return maybeValue;
+  }
+
+  public async setSharePointListViewXml(
+    request: M365SharePointListViewXmlRequest & { viewXml: string },
+  ): Promise<unknown> {
+    const url = `${this.buildSharePointViewXmlEndpoint(request)}/SetViewXml`;
+    return await this.requestSharePointRest(url, "POST", {
+      viewXml: request.viewXml,
+    });
   }
 }
 

@@ -321,6 +321,7 @@ Creates a SharePoint client with Graph and SharePoint REST helpers:
 - `searchSharePointSitesWithSelect(search)` - `GET /v1.0/sites?search=<term>&$select=name,id,displayName,webUrl`
 - `getSharePointLists(siteId)` - `GET /v1.0/sites/{siteId}/lists?$select=id,displayName,list`
 - `getSharePointListColumns(siteId, listId)` - `GET /v1.0/sites/{siteId}/lists/{listId}/columns`
+- `getSharePointListViewXml(request)` - `GET <siteWebUrl>/_api/Web/Lists(guid'{listId}')/Views(guid'{viewId}')/ListViewXml`
 - `buildSharePointViewXml(options)` - builds View XML for list view updates
 - `setSharePointListViewXml(request)` - `POST <siteWebUrl>/_api/Web/Lists(guid'{listId}')/Views(guid'{viewId}')/SetViewXml`
 
@@ -348,6 +349,12 @@ await sharePointClient.setSharePointListViewXml({
   listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
   viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
   viewXml,
+});
+
+const existingViewXml = await sharePointClient.getSharePointListViewXml({
+  siteWebUrl: "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+  listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+  viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
 });
 ```
 
