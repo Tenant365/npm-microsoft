@@ -11,6 +11,7 @@ import {
 import {
   M365SharePointColumn,
   M365SharePointListInfo,
+  M365SharePointListViewInfo,
   M365SharePointListViewXmlRequest,
   M365SharePointSite,
   M365SharePointSiteMetadata,
@@ -201,6 +202,33 @@ export class SharePointClient extends M365GraphClientBase {
       );
     }
     return maybeValue;
+  }
+
+  public async getSharePointDefaultViewByListTitle(
+    siteWebUrl: string,
+    listTitle: string,
+  ): Promise<M365SharePointListViewInfo | null> {
+    const escapedListTitle = listTitle.replace(/'/g, "''");
+    const url = `${siteWebUrl}/_api/web/lists/getbytitle('${escapedListTitle}')/views?$filter=DefaultView eq true&$select=Id,Title`;
+    const data = await this.requestSharePointRest(url, "GET");
+    const maybeResults = (data as any)?.d?.results;
+    if (!Array.isArray(maybeResults)) {
+      throw new Error(
+        `SharePoint REST default view response has an invalid format: ${JSON.stringify(data)}`,
+      );
+    }
+
+    const first = maybeResults[0];
+    if (first === undefined) {
+      return null;
+    }
+    if (typeof first?.Id !== "string") {
+      throw new Error(
+        `SharePoint REST default view payload contains an invalid entry: ${JSON.stringify(first)}`,
+      );
+    }
+
+    return first as M365SharePointListViewInfo;
   }
 
   public async setSharePointListViewXml(
