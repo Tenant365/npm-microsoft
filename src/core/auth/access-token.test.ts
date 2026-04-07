@@ -22,7 +22,11 @@ vi.mock("./keyvault", () => ({
   createM365KeyVaultJwtSigner: createM365KeyVaultJwtSignerMock,
 }));
 
-import { getM365AuthenticationWithKeyVaultSigning } from "./access-token";
+import {
+  getM365AuthenticationWithKeyVaultSigning,
+  getM365AuthenticationWithLocalCertificateSigning,
+  M365AuthenticationProvider,
+} from "./access-token";
 
 describe("getM365AuthenticationWithKeyVaultSigning", () => {
   beforeEach(() => {
@@ -85,5 +89,64 @@ describe("getM365AuthenticationWithKeyVaultSigning", () => {
     });
 
     expect(result).toBe(auth);
+  });
+});
+
+describe("local certificate signing auth", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("builds authentication from local certificate and private key", async () => {
+    const auth = { GetAccessToken: vi.fn() };
+    createM365ClientCertificateMock.mockReturnValue(auth);
+
+    const result = await getM365AuthenticationWithLocalCertificateSigning({
+      tenantId: "tenant-local",
+      clientId: "client-local",
+      privateKey: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+      certificate: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
+    });
+
+    expect(createM365ClientCertificateMock).toHaveBeenCalledWith({
+      tenantId: "tenant-local",
+      clientId: "client-local",
+      privateKey: "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+      certificate: "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
+    });
+    expect(result).toBe(auth);
+  });
+
+  it("provider class delegates to local and keyvault builders", async () => {
+    const provider = new M365AuthenticationProvider();
+    const localAuth = { GetAccessToken: vi.fn() };
+    const kvAuth = { GetAccessToken: vi.fn() };
+
+    createM365ClientCertificateMock.mockReturnValueOnce(localAuth);
+    createM365ClientCredentialsMock.mockReturnValue({ GetAccessToken: vi.fn() });
+    getM365KeyVaultCertificateMock.mockResolvedValue({ x509Pem: "cert" });
+    createM365KeyVaultJwtSignerMock.mockReturnValue({
+      keyId: "kid-provider",
+      sign: vi.fn(),
+    });
+    createM365ClientCertificateMock.mockReturnValueOnce(kvAuth);
+
+    const localResult = await provider.buildWithLocalCertificateSigning({
+      tenantId: "tenant-local",
+      clientId: "client-local",
+      privateKey: "pk",
+      certificate: "cert",
+    });
+    const kvResult = await provider.buildWithKeyVaultSigning({
+      tenantId: "tenant-kv",
+      clientId: "client-kv",
+      clientSecret: "secret-kv",
+      keyVaultName: "vault",
+      certificateName: "cert",
+      keyName: "key",
+    });
+
+    expect(localResult).toBe(localAuth);
+    expect(kvResult).toBe(kvAuth);
   });
 });

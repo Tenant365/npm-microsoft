@@ -1,5 +1,7 @@
+import { requestM365Graph } from "../../common/graph/request";
+
 /**
- * Shared GET helper for Microsoft Graph v1.0 (Entra / directory resources).
+ * Shared GET helper for Entra directory modules.
  * @param extraHeaders e.g. `ConsistencyLevel: eventual` when using `$search`
  */
 export async function entraGraphGet(
@@ -7,24 +9,8 @@ export async function entraGraphGet(
   accessToken: string,
   extraHeaders?: Record<string, string>,
 ): Promise<unknown> {
-  const response = await fetch(`https://graph.microsoft.com/v1.0/${path}`, {
+  return await requestM365Graph(path, accessToken, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...extraHeaders,
-    },
+    headers: extraHeaders,
   });
-
-  const data: unknown = await response.json().catch(async () => {
-    const text = await response.text().catch(() => "");
-    return { error: text };
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Microsoft Graph ${path} request failed: ${response.status} ${response.statusText} - ${JSON.stringify(data)}`,
-    );
-  }
-
-  return data;
 }
