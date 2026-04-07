@@ -53,3 +53,9 @@ export interface M365SharePointViewXmlBuilderOptions {
   whereClauseXml?: string;
   orderByClauseXml?: string;
 }
+
+export interface M365SharePointListViewXmlRequest {
+  siteWebUrl: string;
+  listId: string;
+  viewId: string;
+}

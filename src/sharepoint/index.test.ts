@@ -80,4 +80,27 @@ describe("SharePointClient API integrations", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("loads ListViewXml from SharePoint REST endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({ d: { ListViewXml: "<View><Query /></View>" } }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const viewXml = await client.getSharePointListViewXml({
+      siteWebUrl: "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+      listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+      viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
+    });
+
+    expect(viewXml).toBe("<View><Query /></View>");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views(guid'8cf2f9a6-11a3-4eca-8a34-83b9fec192b2')/ListViewXml",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });
