@@ -94,7 +94,7 @@ export class SharePointClient extends M365GraphClientBase {
     search?: string,
   ): Promise<M365SharePointSite[]> {
     const data = await this.requestSharePointSites(
-      search ? `$search=${search}` : "",
+      search ? `search=${encodeURIComponent(search)}` : "",
     );
     if (!isGraphSharePointSitesResponse(data)) {
       throw new Error("Microsoft Graph sites response has an invalid format.");
@@ -112,7 +112,7 @@ export class SharePointClient extends M365GraphClientBase {
     search: string,
   ): Promise<M365SharePointSite[]> {
     const data = await this.requestSharePointSites(
-      `$search=${search}&$select=name,id,displayName,webUrl`,
+      `search=${encodeURIComponent(search)}&$select=name,id,displayName,webUrl`,
     );
     if (!isGraphSharePointSitesResponse(data)) {
       throw new Error("Microsoft Graph sites response has an invalid format.");

@@ -29,7 +29,7 @@ describe("SharePointClient API integrations", () => {
     await client.searchSharePointSitesWithSelect("Controlx6Team");
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://graph.microsoft.com/v1.0/sites?$search=Controlx6Team&$select=name,id,displayName,webUrl",
+      "https://graph.microsoft.com/v1.0/sites?search=Controlx6Team&$select=name,id,displayName,webUrl",
       expect.any(Object),
     );
   });
