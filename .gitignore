@@ -149,3 +149,16 @@ vite.config.ts.timestamp-*
 **/certs
 
 test.ts
+
+*.pem
+*.pfx
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.p12
+*.pfx
+*.p12
+*.pfx
+*.p12
