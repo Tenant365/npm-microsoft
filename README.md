@@ -156,267 +156,232 @@ const created = await teamsClient.createTeam({
 
 ## API Reference
 
-### Authentication
+This reference lists the complete public API exported from `src/index.ts`.
 
-#### `createM365ClientCredentials(credentials)`
+### Authentication (Core)
 
-Returns an object with a `GetAccessToken(scope?)` method that authenticates using a client secret.
+#### Factories
 
-| Parameter      | Type   | Description             |
-| -------------- | ------ | ----------------------- |
-| `tenantId`     | string | Azure AD tenant ID      |
-| `clientId`     | string | Application (client) ID |
-| `clientSecret` | string | Client secret value     |
+- `createM365ClientCredentials(credentials)`  
+  Creates an authentication instance with `GetAccessToken(scope?)` using a client secret.
+- `createM365ClientCertificate(credentials)`  
+  Creates an authentication instance with `GetAccessToken(scope?)` using certificate + private key.
+- `getM365AuthenticationWithKeyVaultSigning(request)`  
+  Builds an `M365Authentication` instance using the Key Vault signing flow.
+- `getM365AuthenticationWithLocalCertificateSigning(request)`  
+  Builds an `M365Authentication` instance using local certificate/key signing.
 
-#### `createM365ClientCertificate(credentials)`
+#### Token helpers
 
-Returns an object with a `GetAccessToken(scope?)` method that authenticates using a certificate and private key.
+- `getM365AccessToken(credentials, scope?)`
+- `getM365AccessTokenWithNodeSigning(request)`
+- `getM365AccessTokenWithKeyVaultSigning(request)`
+- `getM365AccessTokenWithLocalCertificateSigning(request)`
 
-| Parameter     | Type                  | Description                                     |
-| ------------- | --------------------- | ----------------------------------------------- |
-| `tenantId`    | string                | Azure AD tenant ID                              |
-| `clientId`    | string                | Application (client) ID                         |
-| `privateKey`  | `CryptoKey` \| string | PEM-encoded private key or a `CryptoKey` object |
-| `certificate` | string                | PEM-encoded X.509 certificate                   |
-| `keyId`       | string (optional)     | Key ID for the JWT header                       |
+#### OOP authentication provider
 
-Certificate authentication uses a JWT client assertion signed with RS256/RS384/RS512 (detected automatically from the key). The assertion includes the certificate thumbprint (`x5t` and `x5t#S256`).
+- `M365AuthenticationProvider.buildWithKeyVaultSigning(request)`
+- `M365AuthenticationProvider.buildWithLocalCertificateSigning(request)`
 
-#### `getM365AccessToken(credentials, scope?)`
+#### Local certificate helper
 
-Low-level function. Requests an access token using client credentials.
+- `createM365LocalSigningCertificate(options)`  
+  Creates a self-signed certificate for local development.
 
-#### `getM365AccessTokenFromClientCertificate(credentials, scope?)`
+#### Key Vault helpers
 
-Low-level function. Requests an access token using a certificate-based JWT assertion.
+- `getM365KeyVaultCertificate(request)`
+- `getM365KeyVaultSecret(request)`
+- `createM365KeyVaultJwtSigner(request)`
 
-#### `getM365AccessTokenWithNodeSigning(request)`
+#### Constants / types
 
-Fetches the certificate from Key Vault, signs the JWT locally using the provided private key.
-
-#### `getM365AccessTokenWithKeyVaultSigning(request)`
-
-Fetches the certificate from Key Vault, signs the JWT remotely using the Key Vault sign API.
-
-#### `getM365AccessTokenWithLocalCertificateSigning(request)`
-
-Requests an access token using a local certificate + private key signing flow.
-
-#### `getM365AuthenticationWithKeyVaultSigning(request)`
-
-Builds an `M365Authentication` object using Key Vault-backed signing (certificate + signer). Useful when you want to pass authentication into service clients like `TeamsClient`.
-
-#### `getM365AuthenticationWithLocalCertificateSigning(request)`
-
-Builds an `M365Authentication` object from a local certificate/private key pair.
-
-#### `M365AuthenticationProvider`
-
-Object-oriented wrapper for authentication strategy selection:
-
-- `buildWithKeyVaultSigning(request)`
-- `buildWithLocalCertificateSigning(request)`
-
----
-
-### Key Vault
-
-#### `getM365KeyVaultCertificate(request)`
-
-Fetches a certificate from Azure Key Vault.
-
-```typescript
-const cert = await getM365KeyVaultCertificate({
-  vaultName: "my-vault",
-  certificateName: "my-cert",
-  authentication: createM365ClientCredentials({
-    tenantId: "tenant-id",
-    clientId: "client-id",
-    clientSecret: "client-secret",
-  }),
-  // certificateVersion: "optional-version-id",
-});
-
-// cert.x509Pem       – PEM string
-// cert.x509DerBase64 – base64-encoded DER bytes
-```
-
-#### `getM365KeyVaultSecret(request)`
-
-Fetches a secret value from Azure Key Vault.
-
-```typescript
-const secret = await getM365KeyVaultSecret({
-  vaultName: "my-vault",
-  secretName: "my-secret",
-  authentication: createM365ClientCredentials({
-    tenantId: "tenant-id",
-    clientId: "client-id",
-    clientSecret: "client-secret",
-  }),
-});
-
-// secret.value – the secret string
-```
-
-#### `createM365KeyVaultJwtSigner(request)`
-
-Creates an async signer backed by Azure Key Vault. Useful when you need to sign arbitrary JWT payloads.
-
-```typescript
-const signer = createM365KeyVaultJwtSigner({
-  vaultName: "my-vault",
-  keyName: "my-key",
-  authentication: createM365ClientCredentials({
-    tenantId: "tenant-id",
-    clientId: "client-id",
-    clientSecret: "client-secret",
-  }),
-});
-
-// signer.keyId  – Key Vault key ID
-// signer.sign(signingInput, alg) – signs the input string using Key Vault
-```
+- `MS365Scopes.DEFAULT` = `https://graph.microsoft.com/.default`
+- `MS365Scopes.KEY_VAULT` = `https://vault.azure.net/.default`
+- Important types: `M365Authentication`, `M365AccessToken`, `MS365ClientCredentials`, `MS365CertificateCredentials`
 
 ---
 
 ### Teams
 
-#### `createTeamsClient(authentication)`
+#### Factory
 
-Creates a Teams client with helper methods:
+- `createTeamsClient(authentication): TeamsClient`
 
-- `getAccessToken()` – Requests a Graph token with `MS365Scopes.DEFAULT`
-- `getAllTeams(search?)` – Calls `GET /v1.0/teams` (optional `$search` query, same pattern as SharePoint sites)
-- `getTeamsBySearch(search?)` – Alias for `getAllTeams(search)`
-- `getAllTeamsMetadata()` – Returns a reduced `M365TeamMetadata[]` from the teams list (same idea as `getSharePointAllSitesMetadata`)
-- `getTeam(teamId)` – Calls `GET /v1.0/teams/{teamId}`
-- `getTeamById(teamId)` – Alias for `getTeam(teamId)`
-- `deleteTeam(teamId)` – Calls `DELETE /v1.0/teams/{teamId}`
-- `getAllTeamTemplates()` – Calls `GET /v1.0/teamsTemplates` so you can choose a template id supported by your tenant
-- `createTeam(input)` – Calls `POST /v1.0/teams` with `template@odata.bind` and `members` (Graph requirement). Returns the team resource or a **202** provisioning result with `operationLocation` / `contentLocation` headers.
+#### `TeamsClient` methods
 
-List responses are validated with the exported helper `isGraphTeamsResponse` (expects `@odata.context` and `value`), matching `isGraphSharePointSitesResponse` for SharePoint.
+- `getAccessToken(scope?)`  
+  Returns an access token from the provided authentication provider.
+- `getAllTeams(search?)`  
+  `GET /v1.0/teams` (optional search parameter).
+- `getTeamsBySearch(search?)`  
+  Alias für `getAllTeams`.
+- `getAllTeamsMetadata()`  
+  Returns reduced team metadata.
+- `getTeam(teamId)`  
+  `GET /v1.0/teams/{teamId}`.
+- `getTeamById(teamId)`  
+  Alias für `getTeam`.
+- `getAllTeamTemplates()`  
+  `GET /v1.0/teamsTemplates`.
+- `createTeam(input)`  
+  `POST /v1.0/teams`; returns a team or a 202 provisioning result (`M365CreateTeamResult`).
+- `deleteTeam(teamId)`  
+  `DELETE /v1.0/teams/{teamId}`.
 
-#### Team creation: `404` / `CreateTeamFromTemplateRequest` / `Templates`
+#### Teams types / guards
 
-Graph accepts the HTTP request, but Microsoft Teams may still respond with **404 Not Found** and a message about **Templates** or **CreateTeamFromTemplateRequest**. That usually means the **template** or **tenant/Teams setup**, not a malformed JSON body from this library.
-
-Checklist:
-
-1. Call `getAllTeamTemplates()` and use a returned `id` as `templateId`, or set `templateOdataBind` to  
-   `https://graph.microsoft.com/v1.0/teamsTemplates('<id>')` for that id.
-2. Ensure **Microsoft Teams** is enabled for the tenant and the app has permissions such as `Team.Create` (and `User.Read.All` to resolve members).
-3. Every `members[].userId` must be a real **Azure AD object id** of a user in that tenant (not `00000000-...`), and at least one **owner** is required.
+- Types: `M365Team`, `M365TeamMetadata`, `M365TeamTemplate`, `M365CreateTeamInput`, `M365CreateTeamResult`
+- Guards: `isGraphTeamsResponse`, `isGraphTeamTemplatesResponse`, `isM365Team`
 
 ---
 
 ### SharePoint
 
-#### `createSharePointClient(authentication)`
+#### Factory
 
-Creates a SharePoint client with Graph and SharePoint REST helpers:
+- `createSharePointClient(authentication): SharePointClient`
 
-- `getAllSharePointSites(search?)` - `GET /v1.0/sites?search=...`
-- `searchSharePointSitesWithSelect(search)` - `GET /v1.0/sites?search=<term>&$select=name,id,displayName,webUrl`
-- `getSharePointLists(siteId)` - `GET /v1.0/sites/{siteId}/lists?$select=id,displayName,list`
-- `getSharePointListColumns(siteId, listId)` - `GET /v1.0/sites/{siteId}/lists/{listId}/columns`
-- `getSharePointListViewXml(request)` - `GET <siteWebUrl>/_api/Web/Lists(guid'{listId}')/Views(guid'{viewId}')/ListViewXml`
-- `buildSharePointViewXml(options)` - builds View XML for list view updates
-- `setSharePointListViewXml(request)` - `POST <siteWebUrl>/_api/Web/Lists(guid'{listId}')/Views(guid'{viewId}')/SetViewXml`
+#### Graph-based methods
 
-Example:
+- `getSharePointSite(siteId)`
+- `getSharePointSiteById(siteId)` (Alias)
+- `getAllSharePointSites(search?)`
+- `getSharePointSitesBySearch(search?)` (Alias)
+- `searchSharePointSitesWithSelect(search)`
+- `getSharePointAllSitesMetadata()`
+- `getSharePointLists(siteId)`  
+  Deckt den Request `GET /v1.0/sites/{siteId}/lists?$select=id,displayName,list` ab.
+- `getSharePointListColumns(siteId, listId)`  
+  Deckt den Request `GET /v1.0/sites/{siteId}/lists/{listId}/columns` ab.
+- `createSharePointListColumn(siteId, listId, column)`
+- `createSharePointListColumns(siteId, listId, columns)`  
+  Batch helper (sequential creation of multiple columns).
+
+#### SharePoint REST view methods
+
+- `getSharePointListViewXml({ siteWebUrl, listId, viewId })`
+- `setSharePointListViewXml({ siteWebUrl, listId, viewId, viewXml })`
+- `getSharePointDefaultViewByListTitle(siteWebUrl, listTitle)`
+- `getSharePointDefaultViewByListId(siteWebUrl, listId)`
+- `getSharePointListViewsByTitle(siteWebUrl, listTitle)`
+- `getSharePointDefaultListViewXmlByTitle(siteWebUrl, listTitle, listId)`
+- `getSharePointDefaultListViewXmlByListId(siteWebUrl, listId)`
+
+#### View XML builder methods
+
+- `buildSharePointViewXml(options)`  
+  Builds new XML or replaces `ViewFields` in `baseViewXml`.
+- `buildSharePointSetViewXmlPayload(options)`  
+  Returns `{ viewXml }` directly for `SetViewXml`.
+- `buildSharePointSetViewXmlPayloadFromViewXml(viewXml)`  
+  Wrapper for existing XML strings.
+
+#### SharePoint types / guards
+
+- Site/List/Column types:  
+  `M365SharePointSite`, `M365SharePointSiteMetadata`, `M365SharePointListInfo`, `M365SharePointColumn`
+- Column create input types:  
+  `M365SharePointColumnCreateInput` (union of `text`, `choice`, `boolean`, `number`, `dateTime`)
+- View types:  
+  `M365SharePointListViewXmlRequest`, `M365SharePointListViewInfo`, `M365SharePointSetViewXmlPayload`, `M365SharePointViewXmlBuilderOptions`
+- Guards:  
+  `isGraphSharePointSitesResponse`, `isGraphSharePointListsResponse`, `isGraphSharePointColumnsResponse`, `isM365SharePointSite`, `isM365SharePointListInfo`, `isM365SharePointColumn`
+
+#### Example: create columns (multiple types)
 
 ```typescript
-const sharePointClient = createSharePointClient(auth);
-
-const sites = await sharePointClient.searchSharePointSitesWithSelect("Controlx6Team");
-const lists = await sharePointClient.getSharePointLists("hostname,siteCollectionId,siteId");
-const columns = await sharePointClient.getSharePointListColumns(
-  "hostname,siteCollectionId,siteId",
-  "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+const createdColumns = await sharePointClient.createSharePointListColumns(
+  "tenant365cloud.sharepoint.com,50362457-e8b6-45a2-8975-90f32004d97c,0bbcfbd6-25e3-4829-a029-a7fa0e562284",
+  "157ec144-aef7-4130-88d8-3d5f07039de8",
+  [
+    {
+      name: "projektnummer",
+      displayName: "Projektnummer",
+      description: "Projektnummer des Projekts",
+      text: {},
+    },
+    {
+      name: "aktenplan",
+      displayName: "Aktenplan",
+      description: "Aktenplan des Projekts",
+      choice: {
+        allowTextEntry: false,
+        choices: ["AG-Angebot", "AG-Vertrag", "Dokumentation"],
+        displayAs: "dropDownMenu",
+      },
+    },
+    {
+      name: "bereitzurarchivierung",
+      displayName: "Bereit zur Archivierung",
+      description: "Ist das Projekt bereit zur Archivierung?",
+      boolean: {},
+    },
+  ],
 );
-
-const viewXml = sharePointClient.buildSharePointViewXml({
-  viewFields: ["Title", "Modified"],
-  rowLimit: 100,
-  whereClauseXml:
-    "<Where><IsNotNull><FieldRef Name='Title' /></IsNotNull></Where>",
-});
-
-await sharePointClient.setSharePointListViewXml({
-  siteWebUrl: "https://secnexdev.sharepoint.com/sites/Controlx11Team",
-  listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
-  viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
-  viewXml,
-});
-
-const existingViewXml = await sharePointClient.getSharePointListViewXml({
-  siteWebUrl: "https://secnexdev.sharepoint.com/sites/Controlx11Team",
-  listId: "f3d9da8b-39d1-4567-9cec-996894b2ed78",
-  viewId: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2",
-});
 ```
 
 ---
 
-### Entra (Microsoft Graph directory)
+### Entra (Microsoft Graph Directory)
 
-Modules live under `src/entra/` and are re-exported from the package root.
+#### Users
 
-```typescript
-import {
-  createEntraUsersClient,
-  createEntraGroupsClient,
-  createEntraApplicationsClient,
-  createEntraServicePrincipalsClient,
-  createEntraDirectoryRolesClient,
-} from "@tenant365/microsoft";
+- Factory: `createEntraUsersClient(authentication)`
+- Klasse: `EntraUsersClient`
+- Methoden:
+  - `getUser(userId)`
+  - `getUserById(userId)` (Alias)
+  - `getAllUsers(query?)`
+  - `getUsersBySearch(search)` (`$search` wird korrekt formatiert/encoded)
+  - `getAllUsersMetadata(query?)`
 
-const users = createEntraUsersClient(auth);
-const u = await users.getUser("user-object-id");
-const allUsers = await users.getAllUsers();
-// Search strings are normalized for Graph ($search): `displayName:Ann` becomes `"displayName:Ann"` and is URL-encoded.
-const bySearch = await users.getUsersBySearch("displayName:Ann");
+#### Groups
 
-const groups = createEntraGroupsClient(auth);
-const g = await groups.getGroup("group-object-id");
+- Factory: `createEntraGroupsClient(authentication)`
+- Klasse: `EntraGroupsClient`
+- Methoden:
+  - `getGroup(groupId)`
+  - `getGroupById(groupId)` (Alias)
+  - `getAllGroups(query?)`
+  - `getGroupsBySearch(search)`
+  - `getAllGroupsMetadata(query?)`
 
-const apps = createEntraApplicationsClient(auth);
-const appList = await apps.getAllApplications("$top=50");
+#### Applications
 
-const sp = createEntraServicePrincipalsClient(auth);
-const principals = await sp.getAllServicePrincipals(
-  "$filter=appId eq '00000000-0000-0000-0000-000000000000'",
-);
+- Factory: `createEntraApplicationsClient(authentication)`
+- Klasse: `EntraApplicationsClient`
+- Methoden:
+  - `getApplication(applicationId)`
+  - `getApplicationById(applicationId)` (Alias)
+  - `getAllApplications(query?)`
+  - `getAllApplicationsMetadata(query?)`
 
-const roles = createEntraDirectoryRolesClient(auth);
-const roleList = await roles.getAllDirectoryRoles();
-const members = await roles.getDirectoryRoleMembers("role-object-id");
-```
+#### Service Principals
 
-| Factory | Client class | Graph resources |
-| --- | --- | --- |
-| `createEntraUsersClient` | `EntraUsersClient` | `/users` |
-| `createEntraGroupsClient` | `EntraGroupsClient` | `/groups` |
-| `createEntraApplicationsClient` | `EntraApplicationsClient` | `/applications` |
-| `createEntraServicePrincipalsClient` | `EntraServicePrincipalsClient` | `/servicePrincipals` |
-| `createEntraDirectoryRolesClient` | `EntraDirectoryRolesClient` | `/directoryRoles`, `/directoryRoles/{id}/members` |
+- Factory: `createEntraServicePrincipalsClient(authentication)`
+- Klasse: `EntraServicePrincipalsClient`
+- Methoden:
+  - `getServicePrincipal(servicePrincipalId)`
+  - `getServicePrincipalById(servicePrincipalId)` (Alias)
+  - `getAllServicePrincipals(query?)`
+  - `getAllServicePrincipalsMetadata(query?)`
 
-List endpoints use the same `@odata.context` + `value` validation pattern as Teams and SharePoint. Grant the matching **Application** permissions (for example `User.Read.All`, `Group.Read.All`, `Application.Read.All`, `Directory.Read.All`) and admin consent as needed.
+#### Directory Roles
 
----
+- Factory: `createEntraDirectoryRolesClient(authentication)`
+- Klasse: `EntraDirectoryRolesClient`
+- Methoden:
+  - `getDirectoryRole(roleId)`
+  - `getDirectoryRoleById(roleId)` (Alias)
+  - `getAllDirectoryRoles(query?)`
+  - `getAllDirectoryRolesMetadata(query?)`
+  - `getDirectoryRoleMembers(roleId)`
 
-### Scopes
+#### Entra helper
 
-Predefined scope constants:
-
-```typescript
-import { MS365Scopes } from "@tenant365/microsoft";
-
-MS365Scopes.DEFAULT; // "https://graph.microsoft.com/.default"
-MS365Scopes.KEY_VAULT; // "https://vault.azure.net/.default"
-```
+- `encodeGraphSearchParameter(search)`  
+  Helper to normalize and encode Graph `$search` expressions.
 
 ---
 
