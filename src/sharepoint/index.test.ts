@@ -53,6 +53,39 @@ describe("SharePointClient API integrations", () => {
     expect(columns[0].displayName).toBe("Title");
   });
 
+  it("creates a single list column via Graph", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      statusText: "Created",
+      json: async () => ({
+        id: "column-id",
+        displayName: "Projektnummer",
+        name: "projektnummer",
+      }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const created = await client.createSharePointListColumn("site-id", "list-id", {
+      description: "Projektnummer des Projekts",
+      enforceUniqueValues: false,
+      hidden: false,
+      indexed: false,
+      name: "projektnummer",
+      displayName: "Projektnummer",
+      text: {},
+    });
+
+    expect(created.displayName).toBe("Projektnummer");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://graph.microsoft.com/v1.0/sites/site-id/lists/list-id/columns",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+  });
+
   it("builds and posts view xml to SharePoint REST endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -77,8 +110,25 @@ describe("SharePointClient API integrations", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views(guid'8cf2f9a6-11a3-4eca-8a34-83b9fec192b2')/SetViewXml",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ viewXml: xml }),
+      }),
     );
+  });
+
+  it("rebuilds only view fields from an existing view xml", () => {
+    const client = new SharePointClient(auth as any);
+    const rebuilt = client.buildSharePointViewXml({
+      baseViewXml:
+        "<View><Query><OrderBy><FieldRef Name=\"FileLeafRef\"/></OrderBy></Query><ViewFields><FieldRef Name=\"DocIcon\"/></ViewFields><Toolbar Type=\"Standard\"/></View>",
+      viewFields: ["DocIcon", "LinkFilename", "Modified", "Author"],
+    });
+
+    expect(rebuilt).toContain(
+      "<ViewFields><FieldRef Name=\"DocIcon\"/><FieldRef Name=\"LinkFilename\"/><FieldRef Name=\"Modified\"/><FieldRef Name=\"Author\"/></ViewFields>",
+    );
+    expect(rebuilt).toContain("<Toolbar Type=\"Standard\"/>");
   });
 
   it("loads ListViewXml from SharePoint REST endpoint", async () => {
@@ -123,8 +173,11 @@ describe("SharePointClient API integrations", () => {
 
     expect(defaultView?.Id).toBe("8cf2f9a6-11a3-4eca-8a34-83b9fec192b2");
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$filter=DefaultView eq true&$select=Id,Title",
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$filter=DefaultView%20eq%20true&$select=Id,Title",
       expect.objectContaining({ method: "GET" }),
+    );
+    expect(auth.GetAccessToken).toHaveBeenCalledWith(
+      "https://secnexdev.sharepoint.com/.default",
     );
   });
 
@@ -154,6 +207,108 @@ describe("SharePointClient API integrations", () => {
     expect(views[0]?.DefaultView).toBe(true);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$select=Id,Title,DefaultView",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads default list view xml by list title without hardcoded view id", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          d: { results: [{ Id: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2", Title: "All Documents" }] },
+        }),
+        text: async () => "",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({ d: { ListViewXml: "<View><Query /></View>" } }),
+        text: async () => "",
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const viewXml = await client.getSharePointDefaultListViewXmlByTitle(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+      "Documents",
+      "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+    );
+
+    expect(viewXml).toBe("<View><Query /></View>");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/web/lists/getbytitle('Documents')/views?$filter=DefaultView%20eq%20true&$select=Id,Title",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views(guid'8cf2f9a6-11a3-4eca-8a34-83b9fec192b2')/ListViewXml",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads default list view xml by list id", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          d: { results: [{ Id: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2", Title: "All Documents" }] },
+        }),
+        text: async () => "",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({ d: { ListViewXml: "<View><Query /></View>" } }),
+        text: async () => "",
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    const viewXml = await client.getSharePointDefaultListViewXmlByListId(
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team",
+      "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+    );
+
+    expect(viewXml).toBe("<View><Query /></View>");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views?$filter=DefaultView%20eq%20true&$select=Id,Title",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://secnexdev.sharepoint.com/sites/Controlx11Team/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views(guid'8cf2f9a6-11a3-4eca-8a34-83b9fec192b2')/ListViewXml",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("normalizes admin host to site host for list views", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        d: { results: [{ Id: "8cf2f9a6-11a3-4eca-8a34-83b9fec192b2", Title: "All Documents" }] },
+      }),
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new SharePointClient(auth as any);
+    await client.getSharePointDefaultViewByListId(
+      "https://tenant365cloud-admin.sharepoint.com/sites/Tenant365",
+      "f3d9da8b-39d1-4567-9cec-996894b2ed78",
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://tenant365cloud.sharepoint.com/sites/Tenant365/_api/Web/Lists(guid'f3d9da8b-39d1-4567-9cec-996894b2ed78')/Views?$filter=DefaultView%20eq%20true&$select=Id,Title",
       expect.objectContaining({ method: "GET" }),
     );
   });
